@@ -2,7 +2,7 @@
  
 ## Description
 
-Easy tu use Resteay with Guice
+Easy use Resteay with Guice
 
 ## Configuration
 

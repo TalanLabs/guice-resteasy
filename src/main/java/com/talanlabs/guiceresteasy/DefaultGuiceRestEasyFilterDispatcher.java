@@ -16,45 +16,52 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Type;
+import java.util.TreeMap;
 
 @Singleton
 public class DefaultGuiceRestEasyFilterDispatcher extends FilterDispatcher {
 
-	private Injector injector;
+    private Injector injector;
 
-	public DefaultGuiceRestEasyFilterDispatcher() {
-		super();
-	}
+    public DefaultGuiceRestEasyFilterDispatcher() {
+        super();
+    }
 
-	@Inject
-	public void setInjector(Injector injector) {
-		this.injector = injector;
-	}
+    @Inject
+    public void setInjector(Injector injector) {
+        this.injector = injector;
+    }
 
-	@Override
-	public void init(FilterConfig servletConfig) throws ServletException {
-		super.init(servletConfig);
+    @Override
+    public void init(FilterConfig servletConfig) throws ServletException {
+        super.init(servletConfig);
 
-		Registry registry = getDispatcher().getRegistry();
-		ResteasyProviderFactory providerFactory = getDispatcher()
-				.getProviderFactory();
+        Registry registry = getDispatcher().getRegistry();
+        ResteasyProviderFactory providerFactory = getDispatcher()
+                .getProviderFactory();
 
-		for (final Binding<?> binding : injector.getBindings().values()) {
-			Key<?> key = binding.getKey();
-			Type type = key.getTypeLiteral().getType();
-			if (type instanceof Class) {
-				Class<?> beanClass = (Class<?>) type;
-				if (GetRestful.isRootResource(beanClass)) {
-					ResourceFactory resourceFactory = new GuiceResourceFactory(
-							binding.getProvider(), beanClass);
-					registry.addResourceFactory(resourceFactory);
-				}
+        TreeMap<Class<?>, Object> providers = new TreeMap<>(new OrderComparator());
 
-				if (beanClass.isAnnotationPresent(Provider.class)) {
-					providerFactory.registerProviderInstance(binding
-							.getProvider().get());
-				}
-			}
-		}
-	}
+        for (final Binding<?> binding : injector.getBindings().values()) {
+            Key<?> key = binding.getKey();
+            Type type = key.getTypeLiteral().getType();
+            if (type instanceof Class) {
+                Class<?> beanClass = (Class<?>) type;
+                if (GetRestful.isRootResource(beanClass)) {
+                    ResourceFactory resourceFactory = new GuiceResourceFactory(
+                            binding.getProvider(), beanClass);
+                    registry.addResourceFactory(resourceFactory);
+                }
+
+                if (beanClass.isAnnotationPresent(Provider.class)) {
+                    providers.put(beanClass, binding
+                            .getProvider().get());
+                }
+            }
+        }
+
+        for (Object value : providers.values()) {
+            providerFactory.registerProviderInstance(value);
+        }
+    }
 }

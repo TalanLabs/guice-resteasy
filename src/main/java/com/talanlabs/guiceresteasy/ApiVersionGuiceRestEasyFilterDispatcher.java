@@ -18,6 +18,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class ApiVersionGuiceRestEasyFilterDispatcher extends FilterDispatcher {
@@ -52,6 +53,8 @@ public class ApiVersionGuiceRestEasyFilterDispatcher extends FilterDispatcher {
 		ResteasyProviderFactory providerFactory = getDispatcher()
 				.getProviderFactory();
 
+		TreeMap<Class<?>, Object> providers = new TreeMap<>(new OrderComparator());
+
 		for (final Binding<?> binding : injector.getBindings().values()) {
 			Key<?> key = binding.getKey();
 			Type type = key.getTypeLiteral().getType();
@@ -75,11 +78,15 @@ public class ApiVersionGuiceRestEasyFilterDispatcher extends FilterDispatcher {
 						registry.addResourceFactory(resourceFactory);
 					}
 					if (beanClass.isAnnotationPresent(Provider.class)) {
-						providerFactory.registerProviderInstance(binding
-								                                         .getProvider().get());
+						providers.put(beanClass, binding
+								.getProvider().get());
 					}
 				}
 			}
+		}
+
+		for (Object value : providers.values()) {
+			providerFactory.registerProviderInstance(value);
 		}
 	}
 }

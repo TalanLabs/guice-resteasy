@@ -16,75 +16,82 @@ import javax.servlet.ServletException;
 import javax.ws.rs.ext.Provider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.TreeMap;
 
 public class AnnotationGuiceRestEasyFilterDispatcher extends FilterDispatcher {
 
-	private final Class<? extends Annotation> annotationClass;
-	private final Annotation annotation;
-	private final boolean addNotAnnoted;
+    private final Class<? extends Annotation> annotationClass;
+    private final Annotation annotation;
+    private final boolean addNotAnnoted;
 
-	private Injector injector;
+    private Injector injector;
 
-	public AnnotationGuiceRestEasyFilterDispatcher(
-			Class<? extends Annotation> annotationClass) {
-		this(annotationClass, false);
-	}
+    public AnnotationGuiceRestEasyFilterDispatcher(
+            Class<? extends Annotation> annotationClass) {
+        this(annotationClass, false);
+    }
 
-	public AnnotationGuiceRestEasyFilterDispatcher(
-			Class<? extends Annotation> annotationClass, boolean addNotAnnoted) {
-		this(annotationClass, null, addNotAnnoted);
-	}
+    public AnnotationGuiceRestEasyFilterDispatcher(
+            Class<? extends Annotation> annotationClass, boolean addNotAnnoted) {
+        this(annotationClass, null, addNotAnnoted);
+    }
 
-	public AnnotationGuiceRestEasyFilterDispatcher(Annotation annotation) {
-		this(annotation, false);
-	}
+    public AnnotationGuiceRestEasyFilterDispatcher(Annotation annotation) {
+        this(annotation, false);
+    }
 
-	public AnnotationGuiceRestEasyFilterDispatcher(Annotation annotation, boolean addNotAnnoted) {
-		this(null, annotation, addNotAnnoted);
-	}
+    public AnnotationGuiceRestEasyFilterDispatcher(Annotation annotation, boolean addNotAnnoted) {
+        this(null, annotation, addNotAnnoted);
+    }
 
-	private AnnotationGuiceRestEasyFilterDispatcher(
-			Class<? extends Annotation> annotationClass, Annotation annotation, boolean addNotAnnoted) {
-		super();
+    private AnnotationGuiceRestEasyFilterDispatcher(
+            Class<? extends Annotation> annotationClass, Annotation annotation, boolean addNotAnnoted) {
+        super();
 
-		this.annotationClass = annotationClass;
-		this.annotation = annotation;
-		this.addNotAnnoted = addNotAnnoted;
-	}
+        this.annotationClass = annotationClass;
+        this.annotation = annotation;
+        this.addNotAnnoted = addNotAnnoted;
+    }
 
-	@Inject
-	public void setInjector(Injector injector) {
-		this.injector = injector;
-	}
+    @Inject
+    public void setInjector(Injector injector) {
+        this.injector = injector;
+    }
 
-	@Override
-	public void init(FilterConfig servletConfig) throws ServletException {
-		super.init(servletConfig);
+    @Override
+    public void init(FilterConfig servletConfig) throws ServletException {
+        super.init(servletConfig);
 
-		Registry registry = getDispatcher().getRegistry();
-		ResteasyProviderFactory providerFactory = getDispatcher()
-				.getProviderFactory();
+        Registry registry = getDispatcher().getRegistry();
+        ResteasyProviderFactory providerFactory = getDispatcher()
+                .getProviderFactory();
 
-		for (final Binding<?> binding : injector.getBindings().values()) {
-			Key<?> key = binding.getKey();
-			Annotation a = key.getAnnotation();
-			Class<? extends Annotation> ac = key.getAnnotationType();
-			Type type = key.getTypeLiteral().getType();
-			if (type instanceof Class
-					&& (((annotationClass != null && annotationClass.equals(ac)) || (annotation != null && annotation
-					.equals(a))) || (a == null && ac == null && addNotAnnoted))) {
-				Class<?> beanClass = (Class<?>) type;
-				if (GetRestful.isRootResource(beanClass)) {
-					ResourceFactory resourceFactory = new GuiceResourceFactory(
-							binding.getProvider(), beanClass);
-					registry.addResourceFactory(resourceFactory);
-				}
+        TreeMap<Class<?>, Object> providers = new TreeMap<>(new OrderComparator());
 
-				if (beanClass.isAnnotationPresent(Provider.class)) {
-					providerFactory.registerProviderInstance(binding
-							                                         .getProvider().get());
-				}
-			}
-		}
-	}
+        for (final Binding<?> binding : injector.getBindings().values()) {
+            Key<?> key = binding.getKey();
+            Annotation a = key.getAnnotation();
+            Class<? extends Annotation> ac = key.getAnnotationType();
+            Type type = key.getTypeLiteral().getType();
+            if (type instanceof Class
+                    && (((annotationClass != null && annotationClass.equals(ac)) || (annotation != null && annotation
+                    .equals(a))) || (a == null && ac == null && addNotAnnoted))) {
+                Class<?> beanClass = (Class<?>) type;
+                if (GetRestful.isRootResource(beanClass)) {
+                    ResourceFactory resourceFactory = new GuiceResourceFactory(
+                            binding.getProvider(), beanClass);
+                    registry.addResourceFactory(resourceFactory);
+                }
+
+                if (beanClass.isAnnotationPresent(Provider.class)) {
+                    providers.put(beanClass, binding
+                            .getProvider().get());
+                }
+            }
+        }
+
+        for (Object value : providers.values()) {
+            providerFactory.registerProviderInstance(value);
+        }
+    }
 }
