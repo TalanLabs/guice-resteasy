@@ -16,7 +16,8 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Type;
-import java.util.TreeMap;
+import java.util.HashMap;
+import java.util.Map;
 
 @Singleton
 public class DefaultGuiceRestEasyFilterDispatcher extends FilterDispatcher {
@@ -40,7 +41,7 @@ public class DefaultGuiceRestEasyFilterDispatcher extends FilterDispatcher {
         ResteasyProviderFactory providerFactory = getDispatcher()
                 .getProviderFactory();
 
-        TreeMap<Class<?>, Object> providers = new TreeMap<>(new OrderComparator());
+        Map<Class<?>, Object> providers = new HashMap<>();
 
         for (final Binding<?> binding : injector.getBindings().values()) {
             Key<?> key = binding.getKey();
@@ -60,8 +61,6 @@ public class DefaultGuiceRestEasyFilterDispatcher extends FilterDispatcher {
             }
         }
 
-        for (Object value : providers.values()) {
-            providerFactory.registerProviderInstance(value);
-        }
+        providers.keySet().stream().sorted(new OrderComparator()).map(providers::get).forEach(providerFactory::registerProviderInstance);
     }
 }
